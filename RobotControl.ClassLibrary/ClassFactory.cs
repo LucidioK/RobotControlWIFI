@@ -5,7 +5,7 @@ namespace RobotControl.ClassLibrary
 {
     public static class ClassFactory
     {
-        public static IRobotCommunication CreateRobotCommunication(string ipAddress) => new RobotCommunication(ipAddress);
-        public static IImageRecognitionFromCamera CreateImageRecognitionFromCamera(bool useGPU) => new ImageRecognitionFromCamera(useGPU);
+        public static IRobotCommunication CreateRobotCommunication(string ipAddress) => new RobotCommunication.RobotCommunication(ipAddress);
+        public static IImageRecognitionFromCamera CreateImageRecognitionFromCamera(int GPUDeviceId) => new ImageRecognitionFromCamera(GPUDeviceId);
     }
 }

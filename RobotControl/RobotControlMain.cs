@@ -1,13 +1,18 @@
+using RobotControl.ClassLibrary;
+using RobotControl.ClassLibrary.ImageRecognition;
 using System.Text.RegularExpressions;
 
 namespace RobotControl
 {
     public partial class RobotControlMain : Form
     {
+        IImageRecognitionFromCamera imageRecognition;
+        protected Thread cameraWorkerThread;
         public RobotControlMain()
         {
             InitializeComponent();
             lstLabelsToFind.Items.AddRange(YOLORecognitionLabels);
+            cameraWorkerThread = new Thread(CameraWorkerProc) { Priority = ThreadPriority.AboveNormal };
         }
 
         private Regex ipAddressPattern = new Regex(@"^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$");
@@ -43,5 +48,65 @@ namespace RobotControl
                 txtCameraRSTLURL.Text.Any()                &&
                 txtCameraRSTLURL.ForeColor == Color.Black;
         }
+
+        private void btnStart_Click(object sender, EventArgs e)
+        {
+            imageRecognition = ClassFactory.CreateImageRecognitionFromCamera(int.Parse(txtGPUDeviceId.Text));
+
+            imageRecognition.Open(txtCameraRSTLURL.Text);
+            cameraWorkerThread.Start(this);
+            btnStart.Enabled = false;
+        }
+
+        private void CameraWorkerProc(object? obj)
+        {
+            var thisWindow = obj as RobotControlMain;
+            if (thisWindow != null)
+            {
+                IList<string> itemsToRecognize = GetItemsToRecognize(thisWindow);
+
+                while (true)
+                {
+                    var imageData = thisWindow?.imageRecognition.Get(itemsToRecognize);
+                    thisWindow.Invoke(() =>
+                    {
+                        thisWindow.pctImage.Image = imageData?.Bitmap;
+                    });
+                }
+            }
+        }
+
+        private static IList<string> GetItemsToRecognize(RobotControlMain? thisWindow)
+        { 
+            var items = new List<string>();
+            if (thisWindow != null)
+            {
+                thisWindow.Invoke(() =>
+                {
+                    foreach (var selectedItem in thisWindow.lstLabelsToFind.SelectedItems)
+                    {
+                        if (selectedItem != null)
+                        {
+                            items.Add(selectedItem.ToString());
+                        }
+                    }
+                });
+            }
+
+            return items;
+        }
+
+        private void label4_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void chkHasGPU_CheckedChanged(object sender, EventArgs e) =>
+            txtGPUDeviceId.Enabled = chkHasGPU.Checked;
     }
 }

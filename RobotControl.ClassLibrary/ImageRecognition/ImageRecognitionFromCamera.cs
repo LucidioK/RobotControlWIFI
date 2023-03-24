@@ -15,78 +15,80 @@ namespace RobotControl.ClassLibrary.ImageRecognition
         private OnnxOutputParser onnxOutputParser;
         private PredictionEngine<ImageInputData, TinyYoloPrediction> tinyYoloPredictionEngine;
         private VideoCapture videoCapture;
-        private bool flipY;
         private Thread retrieveFramesFromVideoCaptureThread;
         private long latestFramePosition = 0;
         private object retrieveFramesFromVideoCaptureThreadLock = new object();
         private Mat latestFrame = new Mat();
         private readonly Mat[] latestFrames;
 
-        public ImageRecognitionFromCamera(bool useGPU)
+        public ImageRecognitionFromCamera(int GPUDeviceId)
         {
             latestFrames = new Mat[16];
-            flipY = true;
             var onnxFilePath = Directory.EnumerateFiles(".", "*.onnx").First();
             if (string.IsNullOrEmpty(onnxFilePath))
             {
                 throw new FileNotFoundException($"Could not find any onnx file in the current folder {Directory.GetCurrentDirectory()}");
             }
             tinyYoloModel = new TinyYoloModel(onnxFilePath);
-            onnxModelConfigurator = new OnnxModelConfigurator(tinyYoloModel, useGPU);
+            onnxModelConfigurator = new OnnxModelConfigurator(tinyYoloModel, GPUDeviceId);
             onnxOutputParser = new OnnxOutputParser(tinyYoloModel);
             tinyYoloPredictionEngine = onnxModelConfigurator.GetMlNetPredictionEngine<TinyYoloPrediction>();
         }
 
-        public bool Open(string cameraId)
+        public bool Open(string rtspUrl)
         {
-            var opened = cameraId.All(c => c >= '0' && c <= '9')
-                ? OpenDeviceCamera(cameraId)
-                : OpenIPCamera(cameraId);
+            var opened = OpenIPCamera(rtspUrl);
 
             if (!opened)
             {
-                throw new ArgumentException($"Could not open camera {cameraId}");
+                throw new ArgumentException($"Could not open camera {rtspUrl}");
             }
 
             return opened;
         }
 
-        public ImageRecognitionFromCameraResult Get(string[] labelsOfObjectsToDetect)
+        public ImageRecognitionFromCameraResult Get(IList<string> labelsOfObjectsToDetect)
         {
-            var frame = new Mat();
-            var result = GetEmptyImageRecognitionFromCameraResult();
+            ImageRecognitionFromCameraResult result = GetEmptyImageRecognitionFromCameraResult();
 
-            lock (retrieveFramesFromVideoCaptureThreadLock)
-            {
-                frame = latestFrames[latestFramePosition];
-            }
+            Mat frame = latestFrames[latestFramePosition];
 
             if (frame == null || frame.Empty())
             {
                 return result;
             }
 
-            if (flipY) { frame.Flip(FlipMode.Y); }
+            frame.Flip(FlipMode.Y);
             result.Bitmap = frame.ToBitmap();
             float[] labels = Predict(frame);
             var filteredBoxes = onnxOutputParser
                                 .FilterBoundingBoxes(onnxOutputParser.ParseOutputs(labels), 5, 0.5f)
                                 .Where(b => labelsOfObjectsToDetect.Any(l => l.Equals(b.Label, StringComparison.InvariantCultureIgnoreCase)))
                                 .ToList();
-            if (filteredBoxes.Count == 0)
+            if (filteredBoxes.Count > 0)
             {
-                return result;
+                PopulateResult(result, filteredBoxes);
             }
 
-            var highestConfidence = filteredBoxes.Select(b => b.Confidence).Max();
-            var highestConfidenceBox = filteredBoxes.First(b => b.Confidence == highestConfidence);
-            var bbdfb = BoundingBoxDeltaFromBitmap.FromBitmap(result.Bitmap.Width, result.Bitmap.Height, highestConfidenceBox);
-            var dimensions = HighlightDetectedObject(result.Bitmap, highestConfidenceBox, bbdfb);
-            result.HasData = true;
-            result.Label = dimensions + $", label={highestConfidenceBox.Label}";
-            result.XDeltaProportionFromBitmapCenter = bbdfb.XDeltaProportionFromBitmapCenter;
-
             return result;
+        }
+
+        public void Dispose()
+        {
+            videoCapture?.Dispose();
+            tinyYoloPredictionEngine?.Dispose();
+        }
+
+        private static void PopulateResult(ImageRecognitionFromCameraResult result, List<BoundingBox> filteredBoxes)
+        {
+            var highestConfidence    = filteredBoxes.Select(b => b.Confidence).Max();
+            var highestConfidenceBox = filteredBoxes.First(b => b.Confidence == highestConfidence);
+            var bbdfb                = BoundingBoxDeltaFromBitmap.FromBitmap(result.Bitmap.Width, result.Bitmap.Height, highestConfidenceBox);
+            var dimensions           = HighlightDetectedObject(result.Bitmap, highestConfidenceBox, bbdfb);
+            result.HasData           = true;
+            result.Label             = dimensions + $", label={highestConfidenceBox.Label}";
+            result.XDeltaProportionFromBitmapCenter 
+                                     = bbdfb.XDeltaProportionFromBitmapCenter;
         }
 
         private ImageRecognitionFromCameraResult GetEmptyImageRecognitionFromCameraResult() =>
@@ -105,14 +107,6 @@ namespace RobotControl.ClassLibrary.ImageRecognition
                 s += labels[i] + ":" + (int)elapsed.TotalMicroseconds + " ";
             }
             System.Diagnostics.Debug.WriteLine(s);
-        }
-        public async Task<ImageRecognitionFromCameraResult> GetAsync(string[] labelsOfObjectsToDetect) =>
-            await Task.Run(() => Get(labelsOfObjectsToDetect));
-
-        public void Dispose()
-        {
-            videoCapture?.Dispose();
-            tinyYoloPredictionEngine?.Dispose();
         }
 
         private float[] Predict(Mat frame) =>
@@ -134,15 +128,6 @@ namespace RobotControl.ClassLibrary.ImageRecognition
             return opened;
         }
 
-        private bool OpenDeviceCamera(string cameraId)
-        {
-            bool opened;
-            var intId = int.Parse(cameraId);
-            videoCapture = new VideoCapture(intId);
-            opened = videoCapture.Open(intId);
-            return opened;
-        }
-
         private static string HighlightDetectedObject(Bitmap bitmap, BoundingBox box, BoundingBoxDeltaFromBitmap bbdfb)
         {
             var x = box.Dimensions.X * bbdfb.CorrX;
@@ -160,6 +145,7 @@ namespace RobotControl.ClassLibrary.ImageRecognition
                     gr.DrawLine(new Pen(Color.Green, 2), midX, 0, midX, bitmap.Height - 1);
                 }
             }
+
             return $"x:{(int)x}, y:{(int)y}, w:{(int)w}, h:{(int)h}";
         }
 

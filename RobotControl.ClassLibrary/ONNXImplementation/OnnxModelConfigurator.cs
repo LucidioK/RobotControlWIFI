@@ -1,9 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Transforms.Image;
 using Microsoft.ML.Transforms.Onnx;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace RobotControl.ClassLibrary.ONNXImplementation
 {
@@ -13,12 +10,12 @@ namespace RobotControl.ClassLibrary.ONNXImplementation
         private readonly ITransformer mlModel;
         private readonly IDataView    dataView;
 
-        public OnnxModelConfigurator(IOnnxModel onnxModel, bool useGPU)
+        public OnnxModelConfigurator(IOnnxModel onnxModel, int GPUDeviceId)
         {
             var onnxOptions = new OnnxOptions
             {
-                FallbackToCpu     = !useGPU,
-                GpuDeviceId       = 0,
+                FallbackToCpu     = true,
+                GpuDeviceId       = GPUDeviceId,
                 ModelFile         = onnxModel.ModelPath, 
                 InputColumns      = new string[] { onnxModel.ModelInput},
                 OutputColumns     = new string[] { onnxModel.ModelOutput},

@@ -1,34 +1,36 @@
 #ifndef _ACCELLEROMETER_H_
 #define _ACCELLEROMETER_H_
-#include <Adafruit_Sensor.h>
+#include "SparkFunLSM6DS3.h"
+#include "Wire.h"
+#include "SPI.h"
 
-#include <Adafruit_LSM303_Accel.h>
-Adafruit_LSM303_Accel_Unified  accel   = Adafruit_LSM303_Accel_Unified(54321);
-bool                           accelOK = false;
-bool                           accelInitialized = false;
+LSM6DS3 __myIMU__; //Default constructor is I2C, addr 0x6B
 
-bool getAccellerometerXYX(float *x, float *y, float *z)
+class AccellerometerGyroscopeThermometer
 {
-  if (!accelInitialized)
+public:
+  void initialize()
   {
-    accelOK = accel.begin();
-    if (accelOK)
-    {
-      accel.setRange(LSM303_RANGE_4G);
-    }    
+    __myIMU__.begin();
   }
 
-  accelInitialized = true;
-  if (accelOK)
+  void get_accellerations(float *x, float *y, float *z)
   {
-    sensors_event_t event;
-    accel.getEvent(&event);
-    *x = event.acceleration.x;
-    *y = event.acceleration.y;
-    *z = event.acceleration.z;
+    *x = __myIMU__.readFloatAccelX();
+    *y = __myIMU__.readFloatAccelY();
+    *z = __myIMU__.readFloatAccelZ();
   }
 
-  return accelOK;
-}
+  void get_gyroscope(float *x, float *y, float *z)
+  {
+    *x = __myIMU__.readFloatGyroX();
+    *y = __myIMU__.readFloatGyroY();
+    *z = __myIMU__.readFloatGyroZ();
+  }
 
+  float get_temp_C()
+  {
+    return __myIMU__.readTempC();
+  }
+};
 #endif
