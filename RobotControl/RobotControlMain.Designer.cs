@@ -116,7 +116,7 @@
             this.pctImage.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.pctImage.Location = new System.Drawing.Point(277, 60);
             this.pctImage.Name = "pctImage";
-            this.pctImage.Size = new System.Drawing.Size(654, 487);
+            this.pctImage.Size = new System.Drawing.Size(439, 350);
             this.pctImage.TabIndex = 7;
             this.pctImage.TabStop = false;
             // 
@@ -147,7 +147,7 @@
             this.txtGPUDeviceId.Name = "txtGPUDeviceId";
             this.txtGPUDeviceId.Size = new System.Drawing.Size(85, 23);
             this.txtGPUDeviceId.TabIndex = 10;
-            this.txtGPUDeviceId.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
+            this.txtGPUDeviceId.TextChanged += new System.EventHandler(this.txtGPUDeviceId_TextChanged);
             // 
             // label4
             // 
@@ -157,13 +157,12 @@
             this.label4.Size = new System.Drawing.Size(85, 15);
             this.label4.TabIndex = 9;
             this.label4.Text = "GPU Device ID:";
-            this.label4.Click += new System.EventHandler(this.label4_Click);
             // 
             // RobotControlMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(943, 577);
+            this.ClientSize = new System.Drawing.Size(734, 429);
             this.Controls.Add(this.chkHasGPU);
             this.Controls.Add(this.txtGPUDeviceId);
             this.Controls.Add(this.label4);
@@ -176,6 +175,8 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.txtRobotIPAddress);
             this.Controls.Add(this.label1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
             this.Name = "RobotControlMain";
             this.Text = "RobotControlMain";
             ((System.ComponentModel.ISupportInitialize)(this.pctImage)).EndInit();

@@ -8,14 +8,7 @@ namespace RobotControl.ClassLibrary.ONNXImplementation
         public string ModelInput        { get; } = "image";
         public string ModelOutput       { get; } = "grid";
         public (float, float)[] Anchors { get; } = { (1.08f, 1.19f), (3.42f, 4.41f), (6.63f, 11.38f), (9.42f, 5.11f), (16.62f, 10.52f) };
-        public string[] Labels => labels;
-
-        private string[] labels = new string[] {
-                "aeroplane"  , "bicycle", "bird" , "boat"     , "bottle"   ,
-                "bus"        , "car"    , "cat"  , "chair"    , "cow"      ,
-                "diningtable", "dog"    , "horse", "motorbike", "person"   ,
-                "pottedplant", "sheep"  , "sofa" , "train"    , "tvmonitor"
-        };
+        public string[] Labels => TinyYolo2Labels.Labels;
         public TinyYoloModel(string modelPath)
         {
             if (File.Exists(modelPath))
