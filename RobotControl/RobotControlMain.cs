@@ -71,19 +71,30 @@ namespace RobotControl
         private void CameraWorkerProc(object? obj)
         {
             var thisWindow = obj as RobotControlMain;
-            if (thisWindow != null)
+            if (thisWindow == null)
             {
-                IList<string> itemsToRecognize = GetItemsToRecognize(thisWindow);
+                throw new ArgumentException("Window parameter was null, aborting.");
+            }
+            IList<string> itemsToRecognize = GetItemsToRecognize(thisWindow);
 
-                while (true)
+            while (true)
+            {
+                var imageData = thisWindow?.imageRecognition.Get(itemsToRecognize);
+                if (imageData != null && imageData?.Bitmap != null)
                 {
-                    var imageData = thisWindow?.imageRecognition.Get(itemsToRecognize);
-                    if (imageData != null && imageData?.Bitmap != null)
+                    try
                     {
                         thisWindow.Invoke(() =>
                         {
+                            this.lblTime.Text = DateTime.Now.ToString();
                             thisWindow.pctImage.Image = new Bitmap(imageData?.Bitmap, new Size(thisWindow.pctImage.Width, thisWindow.pctImage.Height));
                         });
+                    }
+                    catch (ObjectDisposedException ex)
+                    { 
+                        // This happens when the form is closed.
+                        System.Diagnostics.Debug.WriteLine(ex);
+                        break;
                     }
                 }
             }

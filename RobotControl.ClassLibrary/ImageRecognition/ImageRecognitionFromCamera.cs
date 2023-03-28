@@ -4,26 +4,29 @@ using Microsoft.ML.Data;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using RobotControl.ClassLibrary.ONNXImplementation;
+using SkiaSharp;
 using System.Drawing;
 
 namespace RobotControl.ClassLibrary.ImageRecognition
 {
     internal class ImageRecognitionFromCamera : IImageRecognitionFromCamera
     {
+        //VideoCaptureAPIs.V4L2; // Cannot open rtsp stream 
+        //VideoCaptureAPIs.GSTREAMER; // Cannot open rtsp stream  
+        //VideoCaptureAPIs.ANY; // 2sec delay 
+        //VideoCaptureAPIs.OPENCV_MJPEG; // Cannot open rtsp stream 
+        //VideoCaptureAPIs.FFMPEG; // 2sec delay;
+        private const VideoCaptureAPIs videoCaptureAPI = VideoCaptureAPIs.FFMPEG;
         private TinyYoloModel tinyYoloModel;
         private OnnxModelConfigurator onnxModelConfigurator;
         private OnnxOutputParser onnxOutputParser;
         private PredictionEngine<ImageInputData, TinyYoloPrediction> tinyYoloPredictionEngine;
         private VideoCapture videoCapture;
         private Thread retrieveFramesFromVideoCaptureThread;
-        private long latestFramePosition = 0;
-        private object retrieveFramesFromVideoCaptureThreadLock = new object();
         private Mat latestFrame = new Mat();
-        private readonly Mat[] latestFrames;
-
+        private Mat emptyFrame = new Mat();
         public ImageRecognitionFromCamera(int GPUDeviceId)
         {
-            latestFrames = new Mat[16];
             var onnxFilePath = Directory.EnumerateFiles(".", "*.onnx").First();
             if (string.IsNullOrEmpty(onnxFilePath))
             {
@@ -37,7 +40,9 @@ namespace RobotControl.ClassLibrary.ImageRecognition
 
         public bool Open(string rtspUrl)
         {
-            var opened = OpenIPCamera(rtspUrl);
+            var taskopened = OpenIPCameraAsync(rtspUrl);
+            taskopened.Wait();
+            var opened = taskopened.Result;
 
             if (!opened)
             {
@@ -51,7 +56,7 @@ namespace RobotControl.ClassLibrary.ImageRecognition
         {
             ImageRecognitionFromCameraResult result = GetEmptyImageRecognitionFromCameraResult();
 
-            Mat frame = latestFrames[latestFramePosition];
+            Mat frame = latestFrame;
 
             if (frame == null || frame.Empty())
             {
@@ -114,35 +119,43 @@ namespace RobotControl.ClassLibrary.ImageRecognition
                 .Predict(new ImageInputData { Image = MLImage.CreateFromStream(frame.ToMemoryStream()) })
                 .PredictedLabels;
 
-        private bool OpenIPCamera(string cameraId)
+        private async Task<bool> OpenIPCameraAsync(string cameraId)
         {
             bool opened;
-            videoCapture = new VideoCapture(cameraId, VideoCaptureAPIs.FFMPEG);
-            opened = videoCapture.Open(cameraId, VideoCaptureAPIs.FFMPEG);
+            videoCapture = new VideoCapture(cameraId, videoCaptureAPI);
+            opened = videoCapture.Open(cameraId, videoCaptureAPI);
             if (opened)
             {
-                retrieveFramesFromVideoCaptureThread = new Thread(RetrieveFramesFromVideoCaptureThreadProc);
+
+                retrieveFramesFromVideoCaptureThread = new Thread(RetrieveFramesFromVideoCaptureThreadProc) { Priority = ThreadPriority.AboveNormal };
                 retrieveFramesFromVideoCaptureThread.Start();
             }
 
             return opened;
         }
 
+        private static Font highlightFont = new Font(FontFamily.GenericMonospace, 15.0f);
+        private static Brush highlightTextBrush = new SolidBrush(Color.Yellow);
+        private static PointF highlightTextPosition = new PointF(64.0f, 64.0f);
+        private static Pen redPen = new Pen(Color.Red, 3);
+        private static Pen greenPen = new Pen(Color.Green, 2);
         private static string HighlightDetectedObject(Bitmap bitmap, BoundingBox box, BoundingBoxDeltaFromBitmap bbdfb)
         {
             var x = box.Dimensions.X * bbdfb.CorrX;
             var y = box.Dimensions.Y * bbdfb.CorrY;
             var w = box.Dimensions.Width * bbdfb.CorrX;
             var h = box.Dimensions.Height * bbdfb.CorrY;
+            highlightTextPosition.X = bitmap.Width - 256;
             var midX = x + w / 2;
             var midY = y + h / 2;
             if (w != 0)
             {
                 using (var gr = Graphics.FromImage(bitmap))
                 {
-                    gr.DrawRectangle(new Pen(Color.Red, 3), x, y, w, h);
-                    gr.DrawLine(new Pen(Color.Green, 2), 0, midY, bitmap.Width - 1, midY);
-                    gr.DrawLine(new Pen(Color.Green, 2), midX, 0, midX, bitmap.Height - 1);
+                    gr.DrawRectangle(redPen, x, y, w, h);
+                    gr.DrawLine(greenPen, 0, midY, bitmap.Width - 1, midY);
+                    gr.DrawLine(greenPen, midX, 0, midX, bitmap.Height - 1);
+                    gr.DrawString(DateTime.Now.ToString(), highlightFont, highlightTextBrush, highlightTextPosition);
                 }
             }
 
@@ -153,9 +166,7 @@ namespace RobotControl.ClassLibrary.ImageRecognition
         {
             while (true)
             {
-                var nextFramePosition = (Interlocked.Read(ref latestFramePosition) + 1) % latestFrames.LongLength;
-                latestFrames[nextFramePosition] = videoCapture.RetrieveMat();
-                Interlocked.Exchange(ref latestFramePosition, nextFramePosition);
+                latestFrame = videoCapture.RetrieveMat();
             }
         }
     }

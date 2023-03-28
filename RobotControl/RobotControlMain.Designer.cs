@@ -43,6 +43,7 @@
             this.lblRobotStatus = new System.Windows.Forms.Label();
             this.txtGPUDeviceId = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
+            this.lblTime = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pctImage)).BeginInit();
             this.SuspendLayout();
             // 
@@ -135,7 +136,7 @@
             // lblRobotStatus
             // 
             this.lblRobotStatus.AutoSize = true;
-            this.lblRobotStatus.Location = new System.Drawing.Point(277, 34);
+            this.lblRobotStatus.Location = new System.Drawing.Point(398, 34);
             this.lblRobotStatus.Name = "lblRobotStatus";
             this.lblRobotStatus.Size = new System.Drawing.Size(84, 15);
             this.lblRobotStatus.TabIndex = 8;
@@ -158,11 +159,21 @@
             this.label4.TabIndex = 9;
             this.label4.Text = "GPU Device ID:";
             // 
+            // lblTime
+            // 
+            this.lblTime.AutoSize = true;
+            this.lblTime.Location = new System.Drawing.Point(277, 34);
+            this.lblTime.Name = "lblTime";
+            this.lblTime.Size = new System.Drawing.Size(10, 15);
+            this.lblTime.TabIndex = 12;
+            this.lblTime.Text = ".";
+            // 
             // RobotControlMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(734, 429);
+            this.Controls.Add(this.lblTime);
             this.Controls.Add(this.chkHasGPU);
             this.Controls.Add(this.txtGPUDeviceId);
             this.Controls.Add(this.label4);
@@ -201,5 +212,6 @@
         private TextBox txtGPUDeviceId;
         private Label label4;
         private CheckBox chkHasGPU;
+        private Label lblTime;
     }
 }
